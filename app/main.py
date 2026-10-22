@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routers import candidates, health, voters
+from app.api.routers import candidates, health, voters, votes
 from app.core.error_handlers import register_error_handlers
 
 app = FastAPI(
@@ -13,3 +13,4 @@ register_error_handlers(app)
 app.include_router(health.router)
 app.include_router(voters.router)
 app.include_router(candidates.router)
+app.include_router(votes.router)

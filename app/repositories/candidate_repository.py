@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models import Candidate, Person
@@ -18,6 +18,16 @@ def get_by_id(session: Session, candidate_id: int) -> Candidate | None:
 
 def list_all(session: Session) -> list[Candidate]:
     return list(session.scalars(select(Candidate).order_by(Candidate.person_id)))
+
+
+def increment_votes(session: Session, candidate_id: int) -> None:
+    # El incremento lo hace la base de datos (votes = votes + 1): leer, sumar en Python
+    # y guardar perdería votos cuando dos transacciones lo hacen a la vez.
+    session.execute(
+        update(Candidate)
+        .where(Candidate.person_id == candidate_id)
+        .values(votes=Candidate.votes + 1)
+    )
 
 
 def delete(session: Session, candidate: Candidate) -> None:
