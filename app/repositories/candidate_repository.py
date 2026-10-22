@@ -1,5 +1,5 @@
-from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session, contains_eager
 
 from app.models import Candidate, Person
 from app.models.constants import CANDIDATE_ROLE
@@ -16,8 +16,21 @@ def get_by_id(session: Session, candidate_id: int) -> Candidate | None:
     return session.get(Candidate, candidate_id)
 
 
-def list_all(session: Session) -> list[Candidate]:
-    return list(session.scalars(select(Candidate).order_by(Candidate.person_id)))
+def list_filtered(
+    session: Session,
+    *,
+    limit: int,
+    offset: int,
+    party: str | None = None,
+    name: str | None = None,
+) -> list[Candidate]:
+    query = select(Candidate).join(Candidate.person).options(contains_eager(Candidate.person))
+    if party:
+        query = query.where(func.lower(Candidate.party) == party.lower())
+    if name:
+        query = query.where(Person.name.icontains(name, autoescape=True))
+    query = query.order_by(Candidate.person_id).limit(limit).offset(offset)
+    return list(session.scalars(query))
 
 
 def increment_votes(session: Session, candidate_id: int) -> None:

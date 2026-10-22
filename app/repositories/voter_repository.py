@@ -1,5 +1,5 @@
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
 from app.models import Person, Voter
 from app.models.constants import VOTER_ROLE
@@ -16,8 +16,21 @@ def get_by_id(session: Session, voter_id: int) -> Voter | None:
     return session.get(Voter, voter_id)
 
 
-def list_all(session: Session) -> list[Voter]:
-    return list(session.scalars(select(Voter).order_by(Voter.person_id)))
+def list_filtered(
+    session: Session,
+    *,
+    limit: int,
+    offset: int,
+    has_voted: bool | None = None,
+    name: str | None = None,
+) -> list[Voter]:
+    query = select(Voter).join(Voter.person).options(contains_eager(Voter.person))
+    if has_voted is not None:
+        query = query.where(Voter.has_voted.is_(has_voted))
+    if name:
+        query = query.where(Person.name.icontains(name, autoescape=True))
+    query = query.order_by(Voter.person_id).limit(limit).offset(offset)
+    return list(session.scalars(query))
 
 
 def mark_as_voted(session: Session, voter_id: int) -> bool:

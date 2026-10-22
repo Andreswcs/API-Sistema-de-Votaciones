@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status
 
 from app.api.dependencies import DbSession
+from app.api.pagination import DEFAULT_LIMIT, Limit, NameFilter, Offset
 from app.schemas.error import ErrorResponse
 from app.schemas.voter import VoterCreate, VoterRead
 from app.services import voter_service
@@ -18,8 +19,17 @@ def create_voter(payload: VoterCreate, db: DbSession) -> VoterRead:
 
 
 @router.get("")
-def list_voters(db: DbSession) -> list[VoterRead]:
-    return [VoterRead.from_model(voter) for voter in voter_service.list_voters(db)]
+def list_voters(
+    db: DbSession,
+    limit: Limit = DEFAULT_LIMIT,
+    offset: Offset = 0,
+    has_voted: bool | None = None,
+    name: NameFilter = None,
+) -> list[VoterRead]:
+    voters = voter_service.list_voters(
+        db, limit=limit, offset=offset, has_voted=has_voted, name=name
+    )
+    return [VoterRead.from_model(voter) for voter in voters]
 
 
 @router.get("/{voter_id}", responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}})

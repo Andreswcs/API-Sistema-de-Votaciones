@@ -27,8 +27,17 @@ def get_voter(session: Session, voter_id: int) -> Voter:
     return voter
 
 
-def list_voters(session: Session) -> list[Voter]:
-    return voter_repository.list_all(session)
+def list_voters(
+    session: Session,
+    *,
+    limit: int,
+    offset: int,
+    has_voted: bool | None = None,
+    name: str | None = None,
+) -> list[Voter]:
+    return voter_repository.list_filtered(
+        session, limit=limit, offset=offset, has_voted=has_voted, name=name
+    )
 
 
 def delete_voter(session: Session, voter_id: int) -> None:

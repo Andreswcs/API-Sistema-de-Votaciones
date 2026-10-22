@@ -1,6 +1,9 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Query, status
 
 from app.api.dependencies import DbSession
+from app.api.pagination import DEFAULT_LIMIT, Limit, NameFilter, Offset
 from app.schemas.candidate import CandidateCreate, CandidateRead
 from app.schemas.error import ErrorResponse
 from app.services import candidate_service
@@ -19,8 +22,19 @@ def create_candidate(payload: CandidateCreate, db: DbSession) -> CandidateRead:
 
 
 @router.get("")
-def list_candidates(db: DbSession) -> list[CandidateRead]:
-    return [CandidateRead.from_model(candidate) for candidate in candidate_service.list_candidates(db)]
+def list_candidates(
+    db: DbSession,
+    limit: Limit = DEFAULT_LIMIT,
+    offset: Offset = 0,
+    party: Annotated[
+        str | None, Query(max_length=100, description="Partido exacto, sin distinguir mayúsculas")
+    ] = None,
+    name: NameFilter = None,
+) -> list[CandidateRead]:
+    candidates = candidate_service.list_candidates(
+        db, limit=limit, offset=offset, party=party, name=name
+    )
+    return [CandidateRead.from_model(candidate) for candidate in candidates]
 
 
 @router.get("/{candidate_id}", responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}})

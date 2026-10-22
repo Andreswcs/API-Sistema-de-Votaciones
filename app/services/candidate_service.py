@@ -27,8 +27,17 @@ def get_candidate(session: Session, candidate_id: int) -> Candidate:
     return candidate
 
 
-def list_candidates(session: Session) -> list[Candidate]:
-    return candidate_repository.list_all(session)
+def list_candidates(
+    session: Session,
+    *,
+    limit: int,
+    offset: int,
+    party: str | None = None,
+    name: str | None = None,
+) -> list[Candidate]:
+    return candidate_repository.list_filtered(
+        session, limit=limit, offset=offset, party=party, name=name
+    )
 
 
 def delete_candidate(session: Session, candidate_id: int) -> None:
