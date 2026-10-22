@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16            # postgres + versión
+    environment:          # variables que la imagen lee al crear la BD
+      POSTGRES_USER: ${POSTGRES_USER:-votaciones}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-votaciones}
+      POSTGRES_DB: ${POSTGRES_DB:-votaciones_db}
+    ports:
+      - "5432:5432"        # puerto_de_tu_máquina:puerto_del_contenedor
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # nombre_del_volumen:ruta_de_datos_en_el_contenedor
+      # Solo se ejecutan al inicializar un volumen vacío, en orden alfabético.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/init/create_test_database.sql:/docker-entrypoint-initdb.d/02_create_test_database.sql:ro
+    healthcheck:
+      # -h localhost: durante la inicialización Postgres solo escucha por socket,
+      # así no se da por "sano" antes de terminar de crear las tablas.
+      test: ["CMD-SHELL", "pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:                    # aquí se declara el volumen nombrado
