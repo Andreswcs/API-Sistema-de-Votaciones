@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routers import health
+from app.core.error_handlers import register_error_handlers
 
 app = FastAPI(
     title="Sistema de Votaciones",
@@ -8,4 +9,5 @@ app = FastAPI(
     version="1.0.0",
 )
 
+register_error_handlers(app)
 app.include_router(health.router)
