@@ -1,10 +1,6 @@
 from fastapi.testclient import TestClient
 
-
-def create_voter(client: TestClient, name: str = "Ana", email: str = "ana@mail.com") -> dict:
-    response = client.post("/voters", json={"name": name, "email": email})
-    assert response.status_code == 201, response.text
-    return response.json()
+from tests.helpers import create_voter
 
 
 def test_create_voter(client: TestClient) -> None:
