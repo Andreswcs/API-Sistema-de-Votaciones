@@ -11,6 +11,14 @@ def vote(client: TestClient, voter_id: int, candidate_id: int) -> None:
     assert response.status_code == 201, response.text
 
 
+def create_voters(client: TestClient) -> list[dict]:
+    return [
+        create_voter(client, name="Pepito Pérez", email="pepito.perez@correo.co"),
+        create_voter(client, name="Tengo Sueño", email="tengo.sueno@correo.co"),
+        create_voter(client, name="Leidy", email="leidy@correo.co"),
+    ]
+
+
 def statistics_of(candidate: dict) -> dict:
     return {"candidate_id": candidate["id"], "name": candidate["name"], "party": candidate["party"]}
 
@@ -28,8 +36,8 @@ def test_statistics_without_votes(client: TestClient) -> None:
         "candidates": [
             {
                 "candidate_id": candidate["id"],
-                "name": "Luis",
-                "party": "Partido Azul",
+                "name": "Samuelito",
+                "party": "Patria Milagro",
                 "votes": 0,
                 "percentage": 0.0,
             }
@@ -44,42 +52,47 @@ def test_statistics_without_candidates(client: TestClient) -> None:
 
 
 def test_statistics_totals_percentages_and_order(client: TestClient) -> None:
-    voters = [create_voter(client, name=f"V{i}", email=f"v{i}@mail.com") for i in range(4)]
-    luis = create_candidate(client, name="Luis", email="luis@mail.com", party="Partido Azul")
-    marta = create_candidate(client, name="Marta", email="marta@mail.com", party=None)
-    pablo = create_candidate(client, name="Pablo", email="pablo@mail.com", party="Partido Verde")
-    vote(client, voters[0]["id"], marta["id"])
-    vote(client, voters[1]["id"], luis["id"])
-    vote(client, voters[2]["id"], luis["id"])
+    pepito, tengo_sueno, leidy = create_voters(client)
+    samuelito = create_candidate(client)
+    monica = create_candidate(client, name="Mónica", email="monica@correo.co", party=None)
+    adriana = create_candidate(client, name="Adriana", email="adriana@correo.co", party="Petroleo")
+    vote(client, pepito["id"], monica["id"])
+    vote(client, tengo_sueno["id"], samuelito["id"])
+    vote(client, leidy["id"], samuelito["id"])
 
     body = client.get("/votes/statistics").json()
 
     assert body["total_votes"] == 3
     assert body["total_voters_who_voted"] == 3
     assert body["candidates"] == [
-        {**statistics_of(luis), "votes": 2, "percentage": 66.67},
-        {**statistics_of(marta), "votes": 1, "percentage": 33.33},
-        {**statistics_of(pablo), "votes": 0, "percentage": 0.0},
+        {**statistics_of(samuelito), "votes": 2, "percentage": 66.67},
+        {**statistics_of(monica), "votes": 1, "percentage": 33.33},
+        {**statistics_of(adriana), "votes": 0, "percentage": 0.0},
     ]
 
 
 def test_statistics_ties_are_ordered_by_name(client: TestClient) -> None:
-    voters = [create_voter(client, name=f"V{i}", email=f"v{i}@mail.com") for i in range(2)]
-    zoe = create_candidate(client, name="Zoe", email="zoe@mail.com")
-    ana = create_candidate(client, name="Ana", email="ana@mail.com")
-    vote(client, voters[0]["id"], zoe["id"])
-    vote(client, voters[1]["id"], ana["id"])
+    pepito, leidy, _ = create_voters(client)
+    monica = create_candidate(client, name="Mónica", email="monica@correo.co")
+    adriana = create_candidate(client, name="Adriana", email="adriana@correo.co")
+    vote(client, pepito["id"], monica["id"])
+    vote(client, leidy["id"], adriana["id"])
 
     names = [row["name"] for row in client.get("/votes/statistics").json()["candidates"]]
 
-    assert names == ["Ana", "Zoe"]
+    assert names == ["Adriana", "Mónica"]
 
 
 def test_candidate_vote_counter_matches_votes_table(
     client: TestClient, db_session: Session
 ) -> None:
-    voters = [create_voter(client, name=f"V{i}", email=f"v{i}@mail.com") for i in range(5)]
-    candidates = [create_candidate(client, name=f"C{i}", email=f"c{i}@mail.com") for i in range(3)]
+    voters = [
+        create_voter(client, name=f"Votante {i}", email=f"votante{i}@correo.co") for i in range(5)
+    ]
+    candidates = [
+        create_candidate(client, name=f"Candidato {i}", email=f"candidato{i}@correo.co")
+        for i in range(3)
+    ]
     for index, voter in enumerate(voters):
         vote(client, voter["id"], candidates[index % 2]["id"])
 

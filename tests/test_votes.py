@@ -106,7 +106,10 @@ def test_concurrent_votes_from_same_voter_register_exactly_one(
     client: TestClient, session_factory: sessionmaker[Session]
 ) -> None:
     voter = create_voter(client)
-    candidates = [create_candidate(client, name=f"C{i}", email=f"c{i}@mail.com") for i in range(2)]
+    candidates = [
+        create_candidate(client),
+        create_candidate(client, name="Adriana", email="adriana@correo.co", party="Petroleo"),
+    ]
     attempts = 8
     barrier = Barrier(attempts)
 
@@ -131,11 +134,11 @@ def test_concurrent_votes_from_same_voter_register_exactly_one(
 
 
 def test_list_votes(client: TestClient) -> None:
-    ana = create_voter(client)
-    beto = create_voter(client, name="Beto", email="beto@mail.com")
+    pepito = create_voter(client)
+    leidy = create_voter(client, name="Leidy", email="leidy@correo.co")
     candidate = create_candidate(client)
-    first = cast_vote(client, ana["id"], candidate["id"])
-    second = cast_vote(client, beto["id"], candidate["id"])
+    first = cast_vote(client, pepito["id"], candidate["id"])
+    second = cast_vote(client, leidy["id"], candidate["id"])
 
     response = client.get("/votes")
 

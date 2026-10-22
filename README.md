@@ -1,96 +1,101 @@
 # Sistema de Votaciones
 
-API REST para registrar votantes y candidatos, emitir votos (uno por votante) y consultar estadísticas de resultados.
-Construida con FastAPI, SQLAlchemy 2 y PostgreSQL 16.
+Una API para gestionar una votación: registrar a las personas que votan (votantes) y a quienes se presentan (candidatos), recibir los votos y consultar quién va ganando.
 
-## Requisitos
+El sistema cuida las reglas básicas de una elección:
 
-Solo **Docker** (Docker Desktop en Windows/macOS). No hace falta Python ni crear ningún `.env`.
+- Cada votante puede votar **una sola vez**.
+- Nadie puede ser votante y candidato al mismo tiempo.
+- No se puede borrar a alguien que ya votó ni a un candidato que ya tiene votos.
 
-## Cómo ejecutar
+Está hecha con Python (FastAPI) y una base de datos PostgreSQL, y todo se ejecuta dentro de Docker.
+
+## Requerimientos
+
+Solo **Docker Desktop** instalado y abierto. No hace falta instalar Python, ni la base de datos, ni configurar nada más, very easy 
+
+## Cómo ejecutarlo
+
+Abre una terminal en la carpeta del proyecto y ejecuta:
 
 ```bash
-git clone <url-del-repo>
-cd sistema-votaciones-new-inntech
 docker compose up --build
 ```
 
-- Swagger (documentación interactiva): <http://localhost:8000/docs>
-- Health check: <http://localhost:8000/health>
+La primera vez tarda un poco, porque descarga y prepara todo. Cuando termine, ya puedes usarlo:
 
-La base de datos se crea sola la primera vez que arranca el volumen, a partir de [`db/schema.sql`](db/schema.sql).
-Para empezar de cero: `docker compose down -v`.
+- **<http://localhost:8000/docs>**: una página web donde ves todas las operaciones de la API y puedes probarlas con el botón *Try it out*, sin escribir código.
+- **<http://localhost:8000/health>**: si responde `{"status":"ok"}`, la API está funcionando.
 
-## Ejemplos de uso
+Para pararlo, pulsa `Ctrl + C` en la terminal. Si prefieres que se ejecute en segundo plano, añade `-d`: `docker compose up --build -d`.
 
-Los ejemplos usan `curl` con sintaxis de bash (Linux, macOS, Git Bash). **En PowerShell** hay que llamar a `curl.exe` (no al alias `curl`), y lo más fiable es pasar el JSON por la entrada estándar:
+## Datos de ejemplo
 
-```powershell
-'{"name":"Ana","email":"ana@mail.com"}' | curl.exe -X POST http://localhost:8000/voters -H "Content-Type: application/json" -d "@-"
-```
+Al arrancar, el sistema **carga solo unos datos de ejemplo**, para que no lo encuentres vacío:
 
-Swagger (`/docs`) permite probar todos los endpoints sin usar la terminal.
+- **12 votantes**: Pepito Pérez, Tengo Sueño, Leidy, Mónica, Brayan Stiven, Yuliana, Kevin Andrés, Marleny, Wilmer, Luz Dary, Ferney y Dayana.
+- **4 candidatos**: Samuelito y Andrés Salinas (partido *Patria Milagro*), Adriana (partido *Petroleo*) y Jhon Fredy (sin partido).
+- **10 votos**. Mónica y Ferney todavía no han votado.
 
-```bash
-# Votantes
-curl -X POST localhost:8000/voters -H "Content-Type: application/json" -d '{"name":"Ana","email":"ana@mail.com"}'
-curl "localhost:8000/voters?limit=10&offset=0&has_voted=false&name=an"
-curl localhost:8000/voters/1
-curl -X DELETE localhost:8000/voters/1
+Si arrancas varias veces, los datos no se duplican: lo que ya existe se deja como está.
 
-# Candidatos (party es opcional)
-curl -X POST localhost:8000/candidates -H "Content-Type: application/json" -d '{"name":"Luis","email":"luis@mail.com","party":"Partido Azul"}'
-curl "localhost:8000/candidates?party=partido%20azul&name=lu"
-curl localhost:8000/candidates/2
-curl -X DELETE localhost:8000/candidates/2
+Así se ven los resultados en <http://localhost:8000/votes/statistics>:
 
-# Votos
-curl -X POST localhost:8000/votes -H "Content-Type: application/json" -d '{"voter_id":1,"candidate_id":2}'
-curl localhost:8000/votes
-curl localhost:8000/votes/statistics
-```
+Los candidatos aparecen de más a menos votos. Si dos empatan, se ordenan por nombre. Los porcentajes se calculan sobre el total de votos.
 
-| Endpoint | Éxito | Errores |
-|---|---|---|
-| `POST /voters`, `POST /candidates` | 201 | 409 email ya registrado (en cualquier rol), 422 datos inválidos |
-| `GET /voters`, `GET /candidates` | 200 | 422 parámetros inválidos |
-| `GET /voters/{id}`, `GET /candidates/{id}` | 200 | 404 |
-| `DELETE /voters/{id}` | 204 | 404, 409 si ya votó |
-| `DELETE /candidates/{id}` | 204 | 404, 409 si tiene votos |
-| `POST /votes` | 201 | 404 votante o candidato inexistente, 409 ya votó, 422 |
-| `GET /votes`, `GET /votes/statistics`, `GET /health` | 200 | — |
-
-Los errores de negocio tienen la forma `{"detail": "<mensaje>", "code": "<CODIGO>"}` con códigos `NOT_FOUND`, `EMAIL_ALREADY_REGISTERED`, `ALREADY_VOTED` y `RESOURCE_IN_USE`.
-
-Las listas aceptan `limit` (por defecto 50, máximo 100) y `offset`. Votantes filtran por `has_voted` y `name`; candidatos por `party` (exacto) y `name` (parcial, sin distinguir mayúsculas).
-
-## Estadísticas
-
-`GET /votes/statistics` tras cargar los datos de demostración:
-
-```json
-{
-  "total_votes": 5,
-  "total_voters_who_voted": 5,
-  "candidates": [
-    {"candidate_id": 7, "name": "Luis Martínez", "party": "Partido Azul", "votes": 3, "percentage": 60.0},
-    {"candidate_id": 8, "name": "Marta López", "party": null, "votes": 2, "percentage": 40.0},
-    {"candidate_id": 9, "name": "Pablo Herrera", "party": "Partido Verde", "votes": 0, "percentage": 0.0}
-  ]
-}
-```
-
-Para cargar esos datos con la API levantada: `python scripts/seed_demo.py` (solo usa la librería estándar).
+Los datos de ejemplo están en [`scripts/seed_demo.py`](scripts/seed_demo.py). Si quiere cambiarlos, edita ese archivo y reinicia desde cero (ver más abajo).
 
 ### Capturas
 
-| Swagger | Estadísticas |
+| Página de pruebas (Swagger) | Estadísticas |
 |---|---|
 | ![Swagger](docs/img/swagger.png) | ![Estadísticas](docs/img/estadisticas.png) |
 
-## Tests
+## Qué se puede hacer
 
-Los tests usan una base PostgreSQL real (`votaciones_test`, creada por [`db/init/`](db/init/)), no SQLite, para probar de verdad las FK compuestas, los `CHECK` y la concurrencia.
+| Acción | Operación |
+|---|---|
+| Registrar un votante (nombre y email) | `POST /voters` |
+| Ver votantes (con filtros por nombre y por si ya votó) | `GET /voters` |
+| Ver un votante | `GET /voters/{id}` |
+| Borrar un votante (solo si no ha votado) | `DELETE /voters/{id}` |
+| Registrar un candidato (nombre, email y partido opcional) | `POST /candidates` |
+| Ver candidatos (con filtros por nombre y partido) | `GET /candidates` |
+| Ver un candidato | `GET /candidates/{id}` |
+| Borrar un candidato (solo si no tiene votos) | `DELETE /candidates/{id}` |
+| Votar | `POST /votes` |
+| Ver todos los votos | `GET /votes` |
+| Ver los resultados | `GET /votes/statistics` |
+
+Las listas muestran 50 resultados por defecto. Puedes pedir más (hasta 100) con `limit` y saltar resultados con `offset`.
+
+Cuando algo no se puede hacer, la API lo explica con un mensaje y un código fijo. Por ejemplo, si un votante intenta votar dos veces:
+
+```json
+{"detail": "El votante 1 ya ha votado", "code": "ALREADY_VOTED"}
+```
+
+## Parar, reiniciar y empezar de cero
+
+Todos los comandos se ejecutan en una terminal abierta en la carpeta del proyecto.
+
+### Empezar completamente de cero
+
+Usa esto si quieres borrar todo lo que has hecho y volver al estado inicial:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+- `docker compose down -v` apaga todo y **borra la base de datos con todos sus datos**. La `-v` es la que borra los datos; sin ella se conservan.
+- `docker compose up --build` vuelve a prepararlo todo: crea la base vacía, arranca la API y carga otra vez los datos de ejemplo.
+
+## Pruebas automáticas (tests)
+
+El proyecto incluye 60 pruebas que comprueban que todo funcionaaaaaaaaa.
+
+Para ejecutarlas necesitas Python 3.12. En PowerShell:
 
 ```powershell
 docker compose up -d db
@@ -100,36 +105,31 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Si el volumen de la base se creó antes de existir `db/init/`, recréalo con `docker compose down -v`.
+## Trabajar en el código sin Docker para la API
 
-## Desarrollo local (API fuera de Docker)
-
-Con la `.venv` activada como arriba:
+Si vas a modificar el código y quieres ver los cambios al instante, deja solo la base de datos en Docker y ejecuta la API en tu equipo (con el entorno de Python activado como en el apartado anterior):
 
 ```powershell
 docker compose up -d db
+docker compose stop api
 uvicorn app.main:app --reload
 ```
 
-La configuración se lee de variables de entorno o de un `.env` opcional; [`.env.example`](.env.example) documenta las variables y sus valores por defecto.
+La configuración (usuario, contraseña y nombre de la base de datos) funciona sin tocar nada. Si necesitas cambiarla, copia [`.env.example`](.env.example) como `.env` y edita los valores.
 
-## Decisiones de diseño y supuestos
+## Cómo está construido y por qué
 
-Detalle en [`docs/DECISIONES.md`](docs/DECISIONES.md) y explicación de la arquitectura en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md). En resumen:
+Esta guía es un resumen. La explicación completa está en dos documentos:
 
-- Arquitectura en capas: routers → services → repositories → models. Los services controlan la transacción y lanzan excepciones de dominio que se traducen a HTTP en un único sitio.
-- Una tabla `persons` con email único y rol, y tablas `voters` / `candidates` enlazadas por una FK compuesta `(person_id, role)`: la base de datos impide que alguien sea votante y candidato a la vez.
-- El `id` de votantes y candidatos es el de `persons`, por lo que los ids se comparten entre ambos recursos.
-- El email es obligatorio, se normaliza a minúsculas y es único entre todos los roles.
-- El voto es una transacción: INSERT en `votes`, `UPDATE` condicional de `has_voted` y `votes = votes + 1` en el candidato. El `UNIQUE` de `votes.voter_id` es la barrera final ante votos simultáneos.
-- Borrados con `ON DELETE RESTRICT`: no se puede borrar a quien ya votó ni a un candidato con votos.
-- Las estadísticas se calculan desde la tabla `votes`, que es la fuente de verdad.
-- El esquema se crea con `db/schema.sql` al iniciar el contenedor, sin `create_all` ni migraciones.
+- **[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)** explica cómo está organizado el código, cómo es la base de datos (con diagramas), qué pasa paso a paso cuando alguien vota y cómo se manejan los errores.
+- **[`docs/DECISIONES.md`](docs/DECISIONES.md)** recoge cada decisión de diseño importante, por qué se tomó y qué alternativa se descartó.
 
-## Mejoras futuras
+Las ideas principales:
 
-- Autenticación (JWT) y roles de administración para altas y borrados.
-- Migraciones con Alembic en lugar de un script de inicio.
-- Paginación con total de resultados (cabeceras o sobre de respuesta) y paginación de `GET /votes`.
-- Varias elecciones o votaciones, con fechas de apertura y cierre.
-- Logs estructurados y métricas.
+- **Una persona, un rol.** Votantes y candidatos comparten una tabla de personas con email único. La propia base de datos impide que alguien se registre dos veces o tenga los dos roles. Por eso los números de id se comparten: si el 13 es un candidato, no existe un votante 13.
+- **El voto es todo o nada.** Guardar el voto, marcar al votante como "ya votó" y sumar el voto al candidato ocurre de una sola vez. Si algo falla, no se guarda nada.
+- **A prueba de votos simultáneos.** Si llegan dos votos del mismo votante al mismo tiempo, la base de datos solo acepta uno.
+- **Resultados fiables.** Las estadísticas se calculan contando los votos reales, no a partir de un contador que podría desajustarse.
+- **El email se guarda en minúsculas**, para que `Pepito@Correo.co` y `pepito@correo.co` cuenten como la misma persona.
+
+MUCHAS GRACIAS COMPAÑEROS DE NEW INNTECH

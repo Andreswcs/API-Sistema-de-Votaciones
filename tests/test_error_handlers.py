@@ -16,7 +16,7 @@ from app.core.exceptions import (
     ("error", "expected_status", "expected_code"),
     [
         (NotFoundError("Votante 1 no encontrado"), 404, "NOT_FOUND"),
-        (EmailAlreadyRegisteredError("ana@mail.com"), 409, "EMAIL_ALREADY_REGISTERED"),
+        (EmailAlreadyRegisteredError("pepito.perez@correo.co"), 409, "EMAIL_ALREADY_REGISTERED"),
         (AlreadyVotedError(1), 409, "ALREADY_VOTED"),
         (ResourceInUseError("En uso"), 409, "RESOURCE_IN_USE"),
     ],

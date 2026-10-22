@@ -1,6 +1,7 @@
 """Carga datos de demostración a través de la API e imprime las estadísticas.
 
-Uso: python scripts/seed_demo.py [URL_BASE]   (por defecto http://localhost:8000)
+Docker Compose lo ejecuta automáticamente (servicio `seed`) cuando la API está lista.
+Uso manual: python scripts/seed_demo.py [URL_BASE]   (por defecto http://localhost:8000)
 Se puede ejecutar varias veces: reutiliza las personas existentes y omite los votos repetidos.
 """
 
@@ -12,25 +13,38 @@ from urllib.request import Request, urlopen
 BASE_URL = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://localhost:8000"
 
 VOTERS = [
-    ("Ana Gómez", "ana@demo.com"),
-    ("Beto Ruiz", "beto@demo.com"),
-    ("Carla Díaz", "carla@demo.com"),
-    ("Diego Torres", "diego@demo.com"),
-    ("Elena Vargas", "elena@demo.com"),
-    ("Fernando Ríos", "fernando@demo.com"),
+    ("Pepito Pérez", "pepito.perez@correo.co"),
+    ("Tengo Sueño", "tengo.sueno@correo.co"),
+    ("Leidy", "leidy@correo.co"),
+    ("Mónica", "monica@correo.co"),
+    ("Brayan Stiven", "brayan.stiven@correo.co"),
+    ("Yuliana", "yuliana@correo.co"),
+    ("Kevin Andrés", "kevin.andres@correo.co"),
+    ("Marleny", "marleny@correo.co"),
+    ("Wilmer", "wilmer@correo.co"),
+    ("Luz Dary", "luz.dary@correo.co"),
+    ("Ferney", "ferney@correo.co"),
+    ("Dayana", "dayana@correo.co"),
 ]
 CANDIDATES = [
-    ("Luis Martínez", "luis@demo.com", "Partido Azul"),
-    ("Marta López", "marta@demo.com", None),
-    ("Pablo Herrera", "pablo@demo.com", "Partido Verde"),
+    ("Samuelito", "samu@correo.co", "Patria Milagro"),
+    ("Adriana", "adriana@correo.co", "Petroleo"),
+    ("Andrés Salinas", "andres.salinas@correo.co", "Patria Milagro"),
+    ("Jhon Fredy", "jhon.fredy@correo.co", None),
 ]
-# Fernando no vota, y Pablo no recibe votos: así se ven ambos casos en las estadísticas.
+# Mónica y Ferney no votan, Adriana y Andrés empatan y Jhon Fredy no recibe votos:
+# así las estadísticas muestran todos los casos interesantes.
 VOTES = [
-    ("ana@demo.com", "luis@demo.com"),
-    ("beto@demo.com", "luis@demo.com"),
-    ("carla@demo.com", "luis@demo.com"),
-    ("diego@demo.com", "marta@demo.com"),
-    ("elena@demo.com", "marta@demo.com"),
+    ("pepito.perez@correo.co", "samu@correo.co"),
+    ("tengo.sueno@correo.co", "samu@correo.co"),
+    ("brayan.stiven@correo.co", "samu@correo.co"),
+    ("marleny@correo.co", "samu@correo.co"),
+    ("leidy@correo.co", "adriana@correo.co"),
+    ("yuliana@correo.co", "adriana@correo.co"),
+    ("luz.dary@correo.co", "adriana@correo.co"),
+    ("kevin.andres@correo.co", "andres.salinas@correo.co"),
+    ("wilmer@correo.co", "andres.salinas@correo.co"),
+    ("dayana@correo.co", "andres.salinas@correo.co"),
 ]
 
 

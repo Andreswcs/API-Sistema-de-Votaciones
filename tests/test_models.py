@@ -28,7 +28,7 @@ def test_models_match_database_schema(engine: Engine) -> None:
 
 
 def test_person_cannot_be_voter_and_candidate(db_session: Session) -> None:
-    person = Person(name="Ana", email="ana@mail.com", role=VOTER_ROLE)
+    person = Person(name="Pepito Pérez", email="pepito.perez@correo.co", role=VOTER_ROLE)
     db_session.add(Voter(person=person))
     db_session.commit()
 

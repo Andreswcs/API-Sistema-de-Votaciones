@@ -4,33 +4,41 @@ from tests.helpers import create_voter
 
 
 def test_create_voter(client: TestClient) -> None:
-    response = client.post("/voters", json={"name": "  Ana  ", "email": "ana@mail.com"})
+    payload = {"name": "  Pepito Pérez  ", "email": "pepito.perez@correo.co"}
+
+    response = client.post("/voters", json=payload)
 
     assert response.status_code == 201
-    assert response.json() == {"id": 1, "name": "Ana", "email": "ana@mail.com", "has_voted": False}
+    assert response.json() == {
+        "id": 1,
+        "name": "Pepito Pérez",
+        "email": "pepito.perez@correo.co",
+        "has_voted": False,
+    }
 
 
 def test_create_voter_normalizes_email(client: TestClient) -> None:
-    voter = create_voter(client, email="  Ana.Perez@Mail.COM ")
+    voter = create_voter(client, email="  Pepito.Perez@Correo.CO ")
 
-    assert voter["email"] == "ana.perez@mail.com"
+    assert voter["email"] == "pepito.perez@correo.co"
 
 
 def test_create_voter_with_duplicate_email_returns_409(client: TestClient) -> None:
     create_voter(client)
 
-    response = client.post("/voters", json={"name": "Otra Ana", "email": "ANA@mail.com"})
+    payload = {"name": "Otro Pepito", "email": "PEPITO.PEREZ@correo.co"}
+    response = client.post("/voters", json=payload)
 
     assert response.status_code == 409
     assert response.json()["code"] == "EMAIL_ALREADY_REGISTERED"
 
 
 def test_create_voter_with_invalid_data_returns_422(client: TestClient) -> None:
-    assert client.post("/voters", json={"name": "Ana", "email": "no-es-email"}).status_code == 422
-    assert client.post("/voters", json={"name": "   ", "email": "ana@mail.com"}).status_code == 422
-    too_long = {"name": "A" * 101, "email": "ana@mail.com"}
-    assert client.post("/voters", json=too_long).status_code == 422
-    assert client.post("/voters", json={"email": "ana@mail.com"}).status_code == 422
+    email = "pepito.perez@correo.co"
+    assert client.post("/voters", json={"name": "Pepito", "email": "mal"}).status_code == 422
+    assert client.post("/voters", json={"name": "   ", "email": email}).status_code == 422
+    assert client.post("/voters", json={"name": "A" * 101, "email": email}).status_code == 422
+    assert client.post("/voters", json={"email": email}).status_code == 422
 
 
 def test_get_voter(client: TestClient) -> None:
@@ -50,13 +58,13 @@ def test_get_missing_voter_returns_404(client: TestClient) -> None:
 
 
 def test_list_voters(client: TestClient) -> None:
-    ana = create_voter(client)
-    luis = create_voter(client, name="Luis", email="luis@mail.com")
+    pepito = create_voter(client)
+    leidy = create_voter(client, name="Leidy", email="leidy@correo.co")
 
     response = client.get("/voters")
 
     assert response.status_code == 200
-    assert response.json() == [ana, luis]
+    assert response.json() == [pepito, leidy]
 
 
 def test_delete_voter(client: TestClient) -> None:

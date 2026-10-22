@@ -1,6 +1,6 @@
 # Arquitectura
 
-Este documento explica cómo está organizado el código, cómo viaja una petición por las capas y por qué cada decisión importante es la que es. El registro breve de decisiones está en [DECISIONES.md](DECISIONES.md).
+Cordial saludo newinntech, en este documento se explica cómo está organizado el código, y cómo viaja una petición por las capas.
 
 ## 1. Capas y responsabilidades
 
@@ -15,13 +15,13 @@ app/
   models/               mapeo SQLAlchemy de las tablas y constantes (roles, nombres de restricciones)
 ```
 
-| Capa | Hace | No hace |
-|---|---|---|
-| **Routers** (`app/api/routers`) | Recibir HTTP, validar con schemas, elegir el código de estado, convertir modelos a schemas de salida | Reglas de negocio, consultas, `commit` |
-| **Schemas** (`app/schemas`) | Definir y validar contratos (recortar el nombre, normalizar el email) | Acceder a la base de datos |
-| **Services** (`app/services`) | Reglas de negocio, orquestar repositories, `commit`/`rollback`, traducir `IntegrityError` a excepciones de dominio | Importar FastAPI o conocer códigos HTTP |
-| **Repositories** (`app/repositories`) | `select`, `insert`, `update`, `delete` y `flush` | `commit` o decisiones de negocio |
-| **Models** (`app/models`) | Mapear tablas, incluidas FK compuestas y `CHECK` | Lógica |
+| Capa | Hace |
+|---|---|
+| **Routers** (`app/api/routers`) | Recibir HTTP, validar con schemas, elegir el código de estado, convertir modelos a schemas de salida |
+| **Schemas** (`app/schemas`) | Definir y validar contratos (recortar el nombre, normalizar el email) |
+| **Services** (`app/services`) | Reglas de negocio, orquestar repositories, `commit`/`rollback`, traducir `IntegrityError` a excepciones de dominio |
+| **Repositories** (`app/repositories`) | `select`, `insert`, `update`, `delete` y `flush` |
+| **Models** (`app/models`) | Mapear tablas, incluidas FK compuestas y `CHECK` |
 
 ### Regla de dependencias
 
@@ -41,7 +41,7 @@ Las flechas solo van hacia la derecha. Un service nunca importa un router ni Fas
 
 ### La sesión de base de datos
 
-`app/core/database.py` crea el `engine` y una fábrica de sesiones. `get_db` abre una sesión por petición y la cierra al terminar. Los routers la reciben con `Depends` (alias `DbSession` en `app/api/dependencies.py`) y la pasan al service. No hay sesiones globales: cada petición trabaja aislada, y los tests pueden sustituir `get_db` por una sesión contra la base de pruebas.
+`app/core/database.py` crea el `engine` y una fábrica de sesiones. `get_db` abre una sesión por petición y la cierra al terminar. Los routers la reciben con `Depends` (alias `DbSession` en `app/api/dependencies.py`) y la pasan al service. No hay sesiones globales.
 
 ## 2. Modelo de datos
 
@@ -77,11 +77,9 @@ erDiagram
     }
 ```
 
-El diagrama entidad-relación original está en [img/mer.png](img/mer.png).
-
 ### Por qué una tabla `persons` y una FK compuesta
 
-El requisito clave es que **nadie sea votante y candidato a la vez**. Con dos tablas independientes (`voters` y `candidates`, cada una con su email) habría que comprobarlo en Python, y dos peticiones simultáneas podrían colarse entre la comprobación y el insert.
+Este es el requisito de la prueba: **nadie sea votante y candidato a la vez**. Entonces con dos tablas independientes (`voters` y `candidates`, cada una con su email) habría que comprobarlo en Python, y dos peticiones simultáneas podrían meterse entre la comprobación y el insert.
 
 La solución reparte el trabajo en tres restricciones de la base de datos:
 
@@ -141,9 +139,6 @@ sequenceDiagram
     S-->>R: Vote
     R-->>C: 201 {id, voter_id, candidate_id, created_at}
 ```
-
-### Por qué así
-
 - **Una sola transacción.** Las tres escrituras (voto, votante, candidato) se confirman juntas o no se confirma ninguna. Si el `UPDATE` condicional falla después del INSERT, el rollback borra también el voto. El test `test_failed_vote_leaves_no_partial_effects` fuerza este caso.
 - **`UPDATE` condicional en vez de leer y luego escribir.** Leer `has_voted`, comprobarlo en Python y escribir deja una ventana en la que dos peticiones leen `false` a la vez. Con `WHERE has_voted = false` la comprobación y la escritura son una única sentencia atómica, y el número de filas afectadas dice si ganamos.
 - **`votes = votes + 1` en SQL.** Si se leyera el contador, se sumara en Python y se guardara, dos votos simultáneos al mismo candidato podrían leer el mismo valor y perder un voto.
@@ -159,7 +154,7 @@ flowchart LR
     P[Pydantic] -- "422 estándar de FastAPI" --> C
 ```
 
-- **Excepciones de dominio** (`app/core/exceptions.py`): `NotFoundError`, `EmailAlreadyRegisteredError`, `AlreadyVotedError` y `ResourceInUseError`. Todas heredan de `DomainError` y llevan un `code` estable y un mensaje en español. Los services las lanzan sin saber qué código HTTP les corresponde.
+- **Excepciones de dominio** (`app/core/exceptions.py`): `NotFoundError`, `EmailAlreadyRegisteredError`, `AlreadyVotedError` y `ResourceInUseError`. Todas heredan de `DomainError` y llevan un `code` estable y un mensaje. Los services las lanzan sin saber qué código HTTP les corresponde.
 - **Traducción a HTTP** (`app/core/error_handlers.py`): un único manejador para `DomainError` mapea cada clase a su estado (404 o 409) y responde `{"detail", "code"}`. Si mañana cambia un código de estado, se cambia en un solo sitio.
 - **`IntegrityError` por nombre de restricción** (`app/services/integrity.py`): psycopg expone `diag.constraint_name`, y los services comparan ese nombre con constantes (`UQ_PERSONS_EMAIL`, `UQ_VOTES_VOTER`, `FK_VOTES_VOTER`…). No se analiza el texto del mensaje, que cambia con el idioma y la versión de PostgreSQL. Un `IntegrityError` no previsto se relanza tal cual (500), en vez de disfrazarlo de un error de negocio que no es.
 - **Validación**: los 422 de Pydantic conservan el formato estándar de FastAPI, que ya indica el campo y el motivo.
@@ -188,10 +183,18 @@ ORDER BY votes DESC, p.name
 - `docker-compose.yml` define las credenciales una sola vez (ancla YAML `x-postgres-env`) con valores por defecto `${VAR:-valor}`, y se las pasa a `db` y a `api`. La API recibe además `POSTGRES_HOST=db`.
 - `db` monta `db/schema.sql` y `db/init/create_test_database.sql` en `/docker-entrypoint-initdb.d/`. La imagen de Postgres los ejecuta solo al inicializar un volumen vacío.
 - El healthcheck usa `pg_isready -h localhost`. Mientras se ejecutan esos scripts Postgres solo escucha por socket, así que la API (`depends_on: condition: service_healthy`) no arranca hasta que las tablas existen.
+- `api` tiene su propio healthcheck. La imagen slim no trae curl, así que consulta `/health` con `urllib` de Python.
+- `seed` es un contenedor de un solo uso (`python:3.12-slim` con `scripts/` montado). Espera a que `api` esté sana, ejecuta `scripts/seed_demo.py` contra `http://api:8000` y termina. Carga los datos **a través de la API**, no con SQL directo, así que pasan por las mismas validaciones y transacciones que cualquier cliente.
+
+```mermaid
+flowchart LR
+    db[(db)] -- service_healthy --> api[api]
+    api -- service_healthy --> seed[seed: carga demo y termina]
+```
 
 ## 7. Tests
 
-- Corren contra PostgreSQL real, en la base `votaciones_test`. SQLite no soporta igual las FK compuestas, los `CHECK` ni el bloqueo por `UNIQUE` que se quieren probar.
+- Corren contra PostgreSQL real, en la base `votaciones_test`.
 - `tests/conftest.py` borra y recrea las tablas ejecutando `db/schema.sql` una vez por sesión de pytest, y hace `TRUNCATE ... RESTART IDENTITY` antes de cada test.
 - El fixture `client` sustituye `get_db` para que la API use la base de pruebas.
 - `tests/test_models.py` compara los modelos con el esquema reflejado de la base, para detectar si se desalinean.

@@ -4,22 +4,26 @@ from tests.helpers import create_candidate, create_voter
 
 
 def test_create_candidate(client: TestClient) -> None:
-    response = client.post(
-        "/candidates", json={"name": " Luis ", "email": "Luis@Mail.com", "party": " Partido Azul "}
-    )
+    payload = {
+        "name": "samuelito",
+        "email": "samu@correo.co",
+        "party": " Patria Milagro ",
+    }
+
+    response = client.post("/candidates", json=payload)
 
     assert response.status_code == 201
     assert response.json() == {
         "id": 1,
-        "name": "Luis",
-        "email": "luis@mail.com",
-        "party": "Partido Azul",
+        "name": "samuelito",
+        "email": "samu@correo.co",
+        "party": "Patria Milagro",
         "votes": 0,
     }
 
 
 def test_create_candidate_without_party(client: TestClient) -> None:
-    response = client.post("/candidates", json={"name": "Marta", "email": "marta@mail.com"})
+    response = client.post("/candidates", json={"name": "Mónica", "email": "monica@correo.co"})
 
     assert response.status_code == 201
     assert response.json()["party"] is None
@@ -28,35 +32,36 @@ def test_create_candidate_without_party(client: TestClient) -> None:
 def test_create_candidate_with_duplicate_email_returns_409(client: TestClient) -> None:
     create_candidate(client)
 
-    response = client.post("/candidates", json={"name": "Otro", "email": "luis@mail.com"})
+    payload = {"name": "Otro Samuelito", "email": "samu@correo.co"}
+    response = client.post("/candidates", json=payload)
 
     assert response.status_code == 409
     assert response.json()["code"] == "EMAIL_ALREADY_REGISTERED"
 
 
 def test_create_candidate_with_invalid_data_returns_422(client: TestClient) -> None:
-    assert client.post("/candidates", json={"name": "Luis", "email": "mal"}).status_code == 422
-    assert (
-        client.post(
-            "/candidates", json={"name": "Luis", "email": "luis@mail.com", "party": "P" * 101}
-        ).status_code
-        == 422
-    )
+    name = "Samuelito"
+    email = "samu@correo.co"
+    assert client.post("/candidates", json={"name": name, "email": "mal"}).status_code == 422
+    too_long_party = {"name": name, "email": email, "party": "P" * 101}
+    assert client.post("/candidates", json=too_long_party).status_code == 422
 
 
 def test_candidate_cannot_use_voter_email(client: TestClient) -> None:
-    create_voter(client, email="ana@mail.com")
+    create_voter(client, email="pepito.perez@correo.co")
 
-    response = client.post("/candidates", json={"name": "Ana", "email": "ana@mail.com"})
+    payload = {"name": "Pepito Pérez", "email": "pepito.perez@correo.co"}
+    response = client.post("/candidates", json=payload)
 
     assert response.status_code == 409
     assert response.json()["code"] == "EMAIL_ALREADY_REGISTERED"
 
 
 def test_voter_cannot_use_candidate_email(client: TestClient) -> None:
-    create_candidate(client, email="luis@mail.com")
+    create_candidate(client, email="samu@correo.co")
 
-    response = client.post("/voters", json={"name": "Luis", "email": "luis@mail.com"})
+    payload = {"name": "Samuelito", "email": "samu@correo.co"}
+    response = client.post("/voters", json=payload)
 
     assert response.status_code == 409
     assert response.json()["code"] == "EMAIL_ALREADY_REGISTERED"
@@ -88,13 +93,13 @@ def test_get_missing_candidate_returns_404(client: TestClient) -> None:
 
 
 def test_list_candidates(client: TestClient) -> None:
-    luis = create_candidate(client)
-    marta = create_candidate(client, name="Marta", email="marta@mail.com", party=None)
+    samuelito = create_candidate(client)
+    adriana = create_candidate(client, name="Adriana", email="adriana@correo.co", party="Petroleo")
 
     response = client.get("/candidates")
 
     assert response.status_code == 200
-    assert response.json() == [luis, marta]
+    assert response.json() == [samuelito, adriana]
 
 
 def test_delete_candidate_without_votes(client: TestClient) -> None:
