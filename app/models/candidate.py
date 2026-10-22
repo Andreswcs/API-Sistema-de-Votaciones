@@ -22,7 +22,9 @@ class Candidate(Base):
     )
 
     person_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
-    role: Mapped[str] = mapped_column(String(10), default=CANDIDATE_ROLE, server_default=CANDIDATE_ROLE)
+    role: Mapped[str] = mapped_column(
+        String(10), default=CANDIDATE_ROLE, server_default=CANDIDATE_ROLE
+    )
     party: Mapped[str | None] = mapped_column(String(100))
     votes: Mapped[int] = mapped_column(default=0, server_default="0")
 

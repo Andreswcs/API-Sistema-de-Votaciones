@@ -19,7 +19,11 @@ def test_models_match_database_schema(engine: Engine) -> None:
             | {uq["name"] for uq in inspector.get_unique_constraints(table.name)}
             | {ck["name"] for ck in inspector.get_check_constraints(table.name)}
         )
-        model_constraints = {c.name for c in table.constraints if c.name and c is not table.primary_key}
+        model_constraints = {
+            constraint.name
+            for constraint in table.constraints
+            if constraint.name and constraint is not table.primary_key
+        }
         assert model_constraints <= db_constraints, table.name
 
 

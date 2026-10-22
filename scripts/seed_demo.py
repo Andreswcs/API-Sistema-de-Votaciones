@@ -65,7 +65,9 @@ def main() -> None:
         sys.exit(f"La API no responde en {BASE_URL}. ¿Está levantada con docker compose up?")
 
     print("Votantes:")
-    voter_ids = {email: get_or_create("voters", {"name": name, "email": email}) for name, email in VOTERS}
+    voter_ids = {
+        email: get_or_create("voters", {"name": name, "email": email}) for name, email in VOTERS
+    }
     print("Candidatos:")
     candidate_ids = {
         email: get_or_create("candidates", {"name": name, "email": email, "party": party})

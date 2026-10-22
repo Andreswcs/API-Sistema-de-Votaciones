@@ -48,5 +48,7 @@ def delete_voter(session: Session, voter_id: int) -> None:
     except IntegrityError as error:
         session.rollback()
         if violated_constraint(error) == FK_VOTES_VOTER:
-            raise ResourceInUseError(f"El votante {voter_id} ya votó y no puede eliminarse") from error
+            raise ResourceInUseError(
+                f"El votante {voter_id} ya votó y no puede eliminarse"
+            ) from error
         raise

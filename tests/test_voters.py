@@ -28,7 +28,8 @@ def test_create_voter_with_duplicate_email_returns_409(client: TestClient) -> No
 def test_create_voter_with_invalid_data_returns_422(client: TestClient) -> None:
     assert client.post("/voters", json={"name": "Ana", "email": "no-es-email"}).status_code == 422
     assert client.post("/voters", json={"name": "   ", "email": "ana@mail.com"}).status_code == 422
-    assert client.post("/voters", json={"name": "A" * 101, "email": "ana@mail.com"}).status_code == 422
+    too_long = {"name": "A" * 101, "email": "ana@mail.com"}
+    assert client.post("/voters", json=too_long).status_code == 422
     assert client.post("/voters", json={"email": "ana@mail.com"}).status_code == 422
 
 

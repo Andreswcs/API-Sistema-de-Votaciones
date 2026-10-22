@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
 from fastapi.testclient import TestClient
+from httpx import Response
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -11,8 +12,12 @@ from app.services import vote_service
 from tests.helpers import create_candidate, create_voter
 
 
+def post_vote(client: TestClient, voter_id: int, candidate_id: int) -> Response:
+    return client.post("/votes", json={"voter_id": voter_id, "candidate_id": candidate_id})
+
+
 def cast_vote(client: TestClient, voter_id: int, candidate_id: int) -> dict:
-    response = client.post("/votes", json={"voter_id": voter_id, "candidate_id": candidate_id})
+    response = post_vote(client, voter_id, candidate_id)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -25,7 +30,7 @@ def test_cast_vote(client: TestClient) -> None:
     voter = create_voter(client)
     candidate = create_candidate(client)
 
-    response = client.post("/votes", json={"voter_id": voter["id"], "candidate_id": candidate["id"]})
+    response = post_vote(client, voter["id"], candidate["id"])
 
     assert response.status_code == 201
     body = response.json()
@@ -41,7 +46,7 @@ def test_double_vote_returns_409(client: TestClient) -> None:
     candidate = create_candidate(client)
     cast_vote(client, voter["id"], candidate["id"])
 
-    response = client.post("/votes", json={"voter_id": voter["id"], "candidate_id": candidate["id"]})
+    response = post_vote(client, voter["id"], candidate["id"])
 
     assert response.status_code == 409
     assert response.json()["code"] == "ALREADY_VOTED"
@@ -71,7 +76,7 @@ def test_vote_with_missing_candidate_returns_404(client: TestClient, db_session:
 def test_candidate_cannot_vote(client: TestClient) -> None:
     candidate = create_candidate(client)
 
-    response = client.post("/votes", json={"voter_id": candidate["id"], "candidate_id": candidate["id"]})
+    response = post_vote(client, candidate["id"], candidate["id"])
 
     assert response.status_code == 404
 
@@ -89,7 +94,7 @@ def test_failed_vote_leaves_no_partial_effects(client: TestClient, db_session: S
     db_session.execute(update(Voter).values(has_voted=True))
     db_session.commit()
 
-    response = client.post("/votes", json={"voter_id": voter["id"], "candidate_id": candidate["id"]})
+    response = post_vote(client, voter["id"], candidate["id"])
 
     assert response.status_code == 409
     assert response.json()["code"] == "ALREADY_VOTED"

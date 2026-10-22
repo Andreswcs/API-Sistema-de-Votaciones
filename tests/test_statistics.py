@@ -11,6 +11,10 @@ def vote(client: TestClient, voter_id: int, candidate_id: int) -> None:
     assert response.status_code == 201, response.text
 
 
+def statistics_of(candidate: dict) -> dict:
+    return {"candidate_id": candidate["id"], "name": candidate["name"], "party": candidate["party"]}
+
+
 def test_statistics_without_votes(client: TestClient) -> None:
     create_voter(client)
     candidate = create_candidate(client)
@@ -53,9 +57,9 @@ def test_statistics_totals_percentages_and_order(client: TestClient) -> None:
     assert body["total_votes"] == 3
     assert body["total_voters_who_voted"] == 3
     assert body["candidates"] == [
-        {"candidate_id": luis["id"], "name": "Luis", "party": "Partido Azul", "votes": 2, "percentage": 66.67},
-        {"candidate_id": marta["id"], "name": "Marta", "party": None, "votes": 1, "percentage": 33.33},
-        {"candidate_id": pablo["id"], "name": "Pablo", "party": "Partido Verde", "votes": 0, "percentage": 0.0},
+        {**statistics_of(luis), "votes": 2, "percentage": 66.67},
+        {**statistics_of(marta), "votes": 1, "percentage": 33.33},
+        {**statistics_of(pablo), "votes": 0, "percentage": 0.0},
     ]
 
 
@@ -71,7 +75,9 @@ def test_statistics_ties_are_ordered_by_name(client: TestClient) -> None:
     assert names == ["Ana", "Zoe"]
 
 
-def test_candidate_vote_counter_matches_votes_table(client: TestClient, db_session: Session) -> None:
+def test_candidate_vote_counter_matches_votes_table(
+    client: TestClient, db_session: Session
+) -> None:
     voters = [create_voter(client, name=f"V{i}", email=f"v{i}@mail.com") for i in range(5)]
     candidates = [create_candidate(client, name=f"C{i}", email=f"c{i}@mail.com") for i in range(3)]
     for index, voter in enumerate(voters):
