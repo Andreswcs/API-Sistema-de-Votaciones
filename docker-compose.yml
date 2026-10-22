@@ -1,10 +1,13 @@
+# Credenciales compartidas por db y api. Un .env local las sobrescribe; sin él se usan los valores por defecto.
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-votaciones}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-votaciones}
+  POSTGRES_DB: ${POSTGRES_DB:-votaciones_db}
+
 services:
   db:
     image: postgres:16            # postgres + versión
-    environment:          # variables que la imagen lee al crear la BD
-      POSTGRES_USER: ${POSTGRES_USER:-votaciones}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-votaciones}
-      POSTGRES_DB: ${POSTGRES_DB:-votaciones_db}
+    environment: *postgres-env    # variables que la imagen lee al crear la BD
     ports:
       - "5432:5432"        # puerto_de_tu_máquina:puerto_del_contenedor
     volumes:
@@ -19,6 +22,18 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+
+  api:
+    build: .
+    environment:
+      <<: *postgres-env
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:                    # aquí se declara el volumen nombrado
